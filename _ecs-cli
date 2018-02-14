@@ -1,0 +1,70 @@
+#compdef ecs-cli
+
+_ecs_tasks(){
+    local IFS=$'\n'
+    local tasks=($(ecs-cli ps | tail -n\+2 | sed -r 's_^([^ /]+).* ([^ ]+)$_\1:\2_' | sort | uniq))
+    _describe 'TASKS' tasks
+}
+
+_ecs-container-name(){
+    local IFS=$'\n'
+    local task_id=$(echo $words | grep --only-matching '\--task-id=[^ ]\+' | cut -c11-)
+    local container=($(ecs-cli ps | tail -n\+2 | grep "$task_id" | sed -r 's_^[^/]+/([^ ]+).*$_\1_' | sort | uniq))
+    _describe 'CONTAINER_NAME' container
+}
+
+_ecs-cli(){
+  local global_flags=('(-h --help)'{-h,--help}'[Show help]'
+                      '(-v --version)'{-v,--verbose}'[print the version]')
+
+  local   task_id_flag=('--task-id=[Task ID]:TASK_ID:_ecs_tasks')
+
+
+  local opts=($global_flags)
+
+  command_values="\
+  configure\:'Stores a single cluster configuration.'
+  up\:'Creates the ECS cluster (if it does not already exist) and the AWS resources required to set up the cluster.'
+  down\:'Deletes the CloudFormation stack that was created by ecs-cli up and the associated resources. The --force option is required.'
+  scale\:'Modifies the number of container instances in your cluster.'
+  ps\:'Lists all of the running containers in your ECS cluster'
+  push\:'Push an image to an Amazon ECR repository.'
+  pull\:'Pull an image from an Amazon ECR repository.'
+  images\:'List images an Amazon ECR repository.'
+  license\:'Prints the LICENSE files for the ECS CLI and its dependencies.'
+  compose\:'Executes docker-compose-style commands on an ECS cluster.'
+  logs\:'Retrieves container logs from CloudWatch logs.'
+  help\:'Shows a list of commands or help for one command'
+  h\:'Shows a list of commands or help for one command'
+  "
+ 
+  opts+=("1:Command:(($command_values))")
+
+  case $words[2] in
+
+    logs)
+      opts+=('(-r --region=)'{-r,--region=}'[Specifies the AWS region to use.]:REGION:()'
+             '--cluster-config=[Specifies the name of the ECS cluster configuration to use]:CLUSTER:()'
+             '--ecs-profile=[Specifies the name of the ECS profile configuration to use.]:PROFILE:()'
+             '--aws-profile=[Use the AWS credentials from an existing named profile in ~/.aws/credentials]:PROFILE:()'
+             '(-c,--cluster=)'{-c,--cluster=}'[Specifies the ECS cluster name to use.]:CLUSTER:()'
+             $task_id_flag
+             '--task-def=[Specifies the name or full Amazon Resource Name (ARN) of the ECS Task Definition associated with the Task ID.]:TASK-DEF:()'
+             '--follow[Specifies if the logs should be streamed.]'
+             '--filter-pattern=[Substring to search for within the logs.]:SUBSTRING:()'
+             '--container-name=[Prints the logs for the given container.]:NAME:_ecs-container-name'
+             '--since=[Returns logs newer than a relative duration in minutes.]:MINUTES:()'
+             '--start-time=[Returns logs after a specific date (Example: 2006-01-02T15:04:05+07:00).]:DATETIME:()'
+             '--end-time=[Returns logs before a specific date (Example: 2006-01-02T15:04:05+07:00).]:DATETIME:()'
+             '(-t --timestamps)'{-t,--timestamps}'[Shows timestamps on each line in the log output.]'
+      )
+      _arguments $opts
+      ;;
+    
+    *)
+      _arguments $opts
+      ;;
+  esac
+}
+
+_ecs-cli
